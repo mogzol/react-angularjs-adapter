@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2022",
+    "allowJs": true,
+    "esModuleInterop": true,
+    "moduleResolution": "bundler"
+  },
+  "include": ["**/*.ts"]
+}

@@ -1,0 +1,36 @@
+{
+  "name": "react-angularjs-adapter",
+  "version": "1.0.0",
+  "description": "Mount AngularJS components in React and vice versa, with support for React contexts",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mogzol/react-angularjs-adapter.git"
+  },
+  "author": "Morgan Zolob",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mogzol/react-angularjs-adapter/issues"
+  },
+  "homepage": "https://github.com/mogzol/react-angularjs-adapter#readme",
+  "devDependencies": {
+    "@eslint/js": "^9.28.0",
+    "@types/angular": "^1.8.9",
+    "@types/node": "^22.15.30",
+    "@types/react": "^19.1.6",
+    "@types/react-dom": "^19.1.6",
+    "eslint": "^9.28.0",
+    "eslint-config-prettier": "^10.1.5",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.33.1"
+  },
+  "peerDependencies": {
+    "angular": "^1",
+    "react": "*",
+    "react-dom": "*"
+  }
+}
