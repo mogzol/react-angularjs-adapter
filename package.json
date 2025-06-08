@@ -2,9 +2,18 @@
   "name": "react-angularjs-adapter",
   "version": "1.0.0",
   "description": "Mount AngularJS components in React and vice versa, with support for React contexts",
-  "main": "index.js",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/react-angularjs-adapter.d.ts",
+      "import": "./dist/react-angularjs-adapter.es.js",
+      "require": "./dist/react-angularjs-adapter.umd.js"
+    }
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "vite build",
+    "test": "tsx --test",
+    "lint": "prettier --check . && eslint && echo Linting complete!"
   },
   "repository": {
     "type": "git",
@@ -19,14 +28,19 @@
   "devDependencies": {
     "@eslint/js": "^9.28.0",
     "@types/angular": "^1.8.9",
+    "@types/jsdom": "^21.1.7",
     "@types/node": "^22.15.30",
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.6",
     "eslint": "^9.28.0",
     "eslint-config-prettier": "^10.1.5",
+    "jsdom": "^26.1.0",
     "prettier": "^3.5.3",
+    "tsx": "^4.19.4",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.33.1"
+    "typescript-eslint": "^8.33.1",
+    "vite": "^6.3.5",
+    "vite-plugin-dts": "^4.5.4"
   },
   "peerDependencies": {
     "angular": "^1",

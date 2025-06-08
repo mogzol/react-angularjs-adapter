@@ -2,17 +2,15 @@
 
 import eslint from "@eslint/js";
 import tseslint from "typescript-eslint";
+import eslintConfigPrettier from "eslint-config-prettier/flat";
 
 export default tseslint.config(
   {
-    files: ["**/*.ts", "**/*.mjs", "eslint.config.mjs"],
+    ignores: ["dist"],
   },
   eslint.configs.recommended,
   tseslint.configs.recommendedTypeChecked,
-  tseslint.configs.strictTypeChecked,
-  tseslint.configs.stylisticTypeChecked,
   {
-    files: ["**/*.ts"],
     languageOptions: {
       parserOptions: {
         projectService: true,
@@ -20,4 +18,9 @@ export default tseslint.config(
       },
     },
   },
+  {
+    files: ["**/*.js"],
+    ...tseslint.configs.disableTypeChecked,
+  },
+  eslintConfigPrettier,
 );

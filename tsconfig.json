@@ -1,10 +1,10 @@
 {
   "compilerOptions": {
     "strict": true,
-    "target": "ES2022",
-    "allowJs": true,
+    "target": "es2022",
     "esModuleInterop": true,
-    "moduleResolution": "bundler"
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext"
   },
   "include": ["**/*.ts"]
 }

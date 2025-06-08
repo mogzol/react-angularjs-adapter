@@ -62,10 +62,7 @@ export function angular2react<Props extends Record<string, unknown>>(
     );
     const [, forceRerender] = React.useReducer((x) => x + 1, 0);
 
-    const scope = React.useMemo<Scope<Props>>(
-      () => $injector.get("$rootScope").$new(true),
-      [],
-    );
+    const scope = React.useMemo<Scope<Props>>(() => $injector.get("$rootScope").$new(true), []);
 
     React.useEffect(() => {
       return () => {
@@ -125,9 +122,8 @@ export function angular2react<Props extends Record<string, unknown>>(
         ref: compile,
         key: componentName,
       }),
-      ...Array.from(portalsRef.current.entries()).map(
-        ([key, { content, target }]) =>
-          ReactDOM.createPortal(content, target, key),
+      ...Array.from(portalsRef.current.entries()).map(([key, { content, target }]) =>
+        ReactDOM.createPortal(content, target, key),
       ),
     ];
   };
@@ -177,10 +173,7 @@ export function react2angular<Props extends object>(
 
         public props = {} as Partial<Props>;
 
-        constructor(
-          $element: angular.IAugmentedJQuery,
-          ...services: unknown[]
-        ) {
+        public constructor($element: angular.IAugmentedJQuery, ...services: unknown[]) {
           this.element = $element[0];
 
           this.injectedProps = {};
@@ -188,32 +181,23 @@ export function react2angular<Props extends object>(
             this.injectedProps[name] = services[i] as Props[keyof Props];
           });
 
+          // Search through the element ancestors for am angular2react element we can portal from
           let reactAncestor: AugmentedHTMLElement | null = this.element;
           while (reactAncestor && !reactAncestor.__ReactAngularJSAdapter) {
             reactAncestor = reactAncestor.parentElement;
           }
 
           if (reactAncestor?.__ReactAngularJSAdapter) {
-            this.root = reactAncestor.__ReactAngularJSAdapter.createPortalRoot(
-              this.element,
-            );
+            this.root = reactAncestor.__ReactAngularJSAdapter.createPortalRoot(this.element);
           } else {
             this.root = ReactDOMClient.createRoot(this.element);
           }
         }
 
-        public $onInit() {
-          bindingNames.forEach((name) => {
-            (this.props as Record<keyof Props, unknown>)[name] =
-              this[name as keyof this];
-          });
-        }
-
         public $onChanges(changes: OnChanges<Partial<Props>>) {
           const newProps = {} as Partial<Props>;
           for (const k of Object.keys(changes)) {
-            newProps[k as keyof Props] =
-              changes[k as keyof Props]?.currentValue;
+            newProps[k as keyof Props] = changes[k as keyof Props]?.currentValue;
           }
 
           const nextProps = { ...this.props, ...newProps };
