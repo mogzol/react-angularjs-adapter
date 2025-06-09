@@ -243,7 +243,7 @@ function writable<T extends object>(object: T): T {
             return;
           } else {
             console.warn(
-              `Tried to write to non-writable property "${key}" of`,
+              `react-angularjs-adapter: Tried to write to non-writable property "${key}" of`,
               object,
               `. Consider using a callback instead of 2-way binding.`,
             );
@@ -255,25 +255,38 @@ function writable<T extends object>(object: T): T {
   return _object;
 }
 
+/**
+ * Convert a camelCase string to kebab-case. Logs an error if the given string contains invalid
+ * characters.
+ *
+ * Assuming none of the error conditions are hit, this function should generate a kebab-case string
+ * which AngularJS will convert back into the source string.
+ *
+ * AngularJS converts from kebab-case to camelCase following the rules here:
+ * https://docs.angularjs.org/guide/directive#matching-directives
+ *
+ * You can see the actual code AngularJS uses here:
+ * https://github.com/angular/code.angularjs.org/blob/master/1.8.3/angular.js#L11576
+ *
+ * The valid characters are [a-zA-Z0-9] because those are the characters AngularJS allows in
+ * identifiers: https://github.com/angular/code.angularjs.org/blob/master/1.8.3/angular.js#L15844
+ */
 function kebabCase(str: string) {
-  return (
-    str
-      // Replace non-alphanumeric characters with dashes
-      .replace(/[^A-Za-z0-9]/g, "-")
+  if (!LOWERCASE_START.test(str)) {
+    throw new Error(
+      `react-angularjs-adapter: Cannot convert "${str}" to kebab-case because it does not start with a lowercase letter!`,
+    );
+  }
 
-      // Add dashes around number groups
-      .replace(/([0-9]+)/g, "-$1-")
+  if (INVALID_CHARACTERS.test(str)) {
+    throw new Error(
+      `react-angularjs-adapter: Cannot convert "${str}" to kebab-case because it contains characters outside the range [a-zA-Z0-9]!`,
+    );
+  }
 
-      // Add dashes before capitals, preserve groups of capitals (except last)
-      .replace(/([A-Z]*)([A-Z-]|$)/g, "-$1-$2")
-
-      // Replace multiple dashes with a single dash
-      .replace(/-+/g, "-")
-
-      // Strip dash from start and end
-      .replace(/(^-|-$)/g, "")
-
-      // Convert it all to lowercase
-      .toLowerCase()
-  );
+  return str.replace(CAMEL_TO_KEBAB_REGEXP, (letter) => "-" + letter.toLowerCase());
 }
+
+const LOWERCASE_START = /^[a-z]/;
+const INVALID_CHARACTERS = /[^a-zA-Z0-9]/g;
+const CAMEL_TO_KEBAB_REGEXP = /[A-Z]/g;

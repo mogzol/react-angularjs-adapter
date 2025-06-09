@@ -243,10 +243,49 @@ describe("react-angularjs-adapter", () => {
         ),
       );
       await new Promise((r) => setTimeout(r, 100));
+
       const labels = container.querySelectorAll(".ng-label");
       assert.equal(labels.length, 2, "Should render two AngularJS components");
       assert.equal(labels[0].textContent, "X");
       assert.equal(labels[1].textContent, "Y");
+    });
+
+    it("should convert attributes to kebab-case in the form AngularJS expects", async () => {
+      const testProps = {
+        normalCamelCase: "test-data-1",
+        someABCProp: "test-data-2",
+        componentABC: "test-data-3",
+        number123Component: "test-data-4",
+        number123: "test-data-5",
+        some1TEST55something: "test-data-6",
+      };
+      const TestComponent = {
+        bindings: Object.fromEntries(Object.keys(testProps).map((k) => [k, "<"])),
+        template: `<span ng-repeat="(key, value) in $ctrl">{{ key }}:{{ value }},</span>`,
+        controller: function () {},
+      };
+      const [$injector] = bootstrapAngular(["testComponent", TestComponent]);
+      const ReactTestComponent = angular2react("testComponent", TestComponent, $injector);
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      const root = ReactDOMClient.createRoot(container);
+      root.render(React.createElement(ReactTestComponent, testProps));
+      await new Promise((r) => setTimeout(r, 100));
+
+      const allText = container.textContent;
+      assert(allText, "Should render text");
+      const resultProps = Object.fromEntries(
+        allText
+          .split(",")
+          .filter((t) => t)
+          .map((t) => t.split(":")) as [string, string][],
+      );
+
+      assert.deepStrictEqual(
+        resultProps,
+        testProps,
+        `Rendered component did not correctly pass all props as attributes.\n\nRendered element:\n\n${container.innerHTML}\n\n`,
+      );
     });
   });
 
