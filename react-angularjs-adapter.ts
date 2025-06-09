@@ -22,11 +22,11 @@ type OnChanges<T> = {
 };
 
 /**
- * Wraps an Angular component in React. Returns a new React component.
+ * Wraps an AngularJS component in React. Returns a new React component.
  *
  * @param componentName The name of the AngularJS component
  * @param component The AngularJS component definition
- * @param $injector The AngularJS `$injector` for the Angular module the component is registered in
+ * @param $injector The AngularJS `$injector` for the module the component is registered in
  *
  * @example
  * ```jsx
@@ -130,7 +130,7 @@ export function angular2react<Props extends Record<string, unknown>>(
 }
 
 /**
- * Wraps a React component in Angular. Returns a new Angular component.
+ * Wraps a React component in AngularJS. Returns a new AngularJS component.
  *
  * @param Component The React component to wrap
  * @param bindingNames The bindings for the component, which will be passed as props
@@ -219,8 +219,8 @@ export function react2angular<Props extends object>(
 }
 
 /**
- * Angular may try to bind back a value via 2-way binding, but React marks all properties on `props`
- * as non-configurable and non-writable.
+ * AngularJS may try to bind back a value via 2-way binding, but React marks all properties on
+ * `props` as non-configurable and non-writable.
  *
  * If we use a `Proxy` to intercept writes to these non-writable properties, we run into an issue
  * where the proxy throws when trying to write anyway, even if we `return false`.
