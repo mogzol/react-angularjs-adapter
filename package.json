@@ -50,5 +50,13 @@
     "angular": "^1",
     "react": "*",
     "react-dom": "*"
-  }
+  },
+  "keywords": [
+    "react",
+    "angularjs",
+    "angular",
+    "adapter",
+    "react2angular",
+    "angular2react"
+  ]
 }
