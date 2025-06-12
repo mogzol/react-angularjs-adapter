@@ -359,6 +359,62 @@ describe("react-angularjs-adapter", () => {
       assert.equal(div.textContent, "context works!");
     });
 
+    it("should pass React context through multiple levels of React/AngularJS components", async () => {
+      const MyContext = createContext("default value");
+
+      // Set up components which will be rendered like:
+      //   ReactRoot -> NgFirstLevel -> ReactFirstLevel -> NgSecondLevel -> ReactSecondLevel
+      // The React context is provided in ReactRoot, and read in ReactSecondLevel.
+
+      const ReactFirstLevel = () => {
+        return React.createElement(ReactNgSecondLevel);
+      };
+      const NgReactFirstLevel = react2angular(ReactFirstLevel);
+      const ReactSecondLevel = () => {
+        const value = useContext(MyContext);
+        return React.createElement("div", { className: "context-value" }, value);
+      };
+      const NgReactSecondLevel = react2angular(ReactSecondLevel);
+
+      const NgSecondLevel = {
+        template: `<ng-react-second-level></ng-react-second-level>`,
+      };
+      const NgFirstLevel = {
+        template: `<ng-react-first-level></ng-react-first-level>`,
+      };
+
+      const [$injector] = bootstrapAngular(
+        ["ngFirstLevel", NgFirstLevel],
+        ["ngSecondLevel", NgSecondLevel],
+        ["ngReactFirstLevel", NgReactFirstLevel],
+        ["ngReactSecondLevel", NgReactSecondLevel],
+      );
+
+      // Wrap the AngularJS components in React
+      const ReactNgFirstLevel = angular2react("ngFirstLevel", NgFirstLevel, $injector);
+      const ReactNgSecondLevel = angular2react("ngSecondLevel", NgSecondLevel, $injector);
+
+      // Mount the React context provider as the root React component
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      const root = ReactDOMClient.createRoot(container);
+      await renderReact(
+        root,
+        React.createElement(
+          MyContext.Provider,
+          { value: "context works!" },
+          React.createElement(ReactNgFirstLevel, {}),
+        ),
+      );
+
+      // Wait for AngularJS to render
+      await new Promise((r) => setTimeout(r, 100));
+
+      const div = container.querySelector(".context-value");
+      assert(div, "ContextReader should be rendered");
+      assert.equal(div.textContent, "context works!");
+    });
+
     it("should allow a context callback to update the context value", async () => {
       // Context with value and setter
       const MyContext = createContext({
