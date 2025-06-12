@@ -1,4 +1,4 @@
-<img alt="react-angularjs-adapter logo" src="logo.png" width="400px" />
+<img alt="react-angularjs-adapter logo" src="https://raw.githubusercontent.com/mogzol/react-angularjs-adapter/main/logo.png" width="400px" />
 
 # react-angularjs-adapter
 
@@ -230,7 +230,7 @@ createRoot(document.getElementById("root")!).render(
 
 When you run this app, you can see that the context is passed from the the provider, through the AngularJS component, and to the consumer, which is able to both read and update it:
 
-<img alt="context example demo" src="demo.gif" />
+<img alt="context example demo" src="https://raw.githubusercontent.com/mogzol/react-angularjs-adapter/main/demo.gif" />
 
 [See this example on StackBlitz](https://stackblitz.com/edit/vitejs-vite-w5zljhwj?file=src%2Fmain.tsx)
 
