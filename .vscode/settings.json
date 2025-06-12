@@ -4,5 +4,6 @@
   "editor.codeActionsOnSave": {
     "source.fixAll": "explicit"
   },
-  "editor.rulers": [100]
+  "editor.rulers": [100],
+  "cSpell.words": ["angularjs", "transclude"]
 }

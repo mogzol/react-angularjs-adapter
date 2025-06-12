@@ -1,0 +1,125 @@
+<!doctype html>
+<html>
+  <head>
+    <title>react-angularjs-adapter Test Page</title>
+    <style>
+      body {
+        font-family: sans-serif;
+      }
+      #angular-root,
+      #react-root {
+        border: 1px solid grey;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Angular Root:</h2>
+    <div id="angular-root">
+      <angular-root></angular-root>
+    </div>
+    <h2>React Root:</h2>
+    <div id="react-root"></div>
+    <script type="module">
+      import { react2angular, angular2react } from "./react-angularjs-adapter";
+      import React from "react";
+      import ReactDOMClient from "react-dom/client";
+      import angular from "angular";
+
+      const angularRoot = {
+        template: `<test-component foo="$ctrl.foo" on-bar="$ctrl.onBar" baz="{{ $ctrl.baz }}"></test-component>`,
+        controller: function () {
+          this.foo = "angular";
+          this.onBar = () => {
+            console.log("onBar");
+            this.baz += 1;
+          };
+          this.baz = 1;
+        },
+      };
+
+      const testComponent = {
+        bindings: { foo: "<", onBar: "<", baz: "@" },
+        template: `
+          <div class="ng-comp">
+            {{$ctrl.foo}}
+            <angular-react-button on-click="$ctrl.handleClick" children="'onBar'"></angular-react-button>
+            {{$ctrl.baz}}
+            <angular-react-location label="'Location'"></angular-react-location>
+            <angular-react-consumer></angular-react-consumer>
+          </div>`,
+        controller: function ($scope) {
+          const $ctrl = this;
+          this.handleClick = function () {
+            $scope.$apply($ctrl.onBar);
+          };
+        },
+      };
+
+      const ReactButton = (props) => {
+        return React.createElement(
+          "button",
+          { className: "react-button", onClick: props.onClick },
+          props.children,
+        );
+      };
+      const angularReactButton = react2angular(ReactButton, ["onClick", "children"]);
+
+      const ReactLocation = (props) => {
+        return React.createElement("div", { className: "react-location" }, [
+          props.label,
+          ": ",
+          props.$location.absUrl(),
+        ]);
+      };
+      const angularReactLocation = react2angular(ReactLocation, ["label"], ["$location"]);
+
+      const context = React.createContext({
+        value: "default value",
+        toggleValue: () => {},
+      });
+
+      const ReactConsumer = () => {
+        const ctx = React.useContext(context);
+        return React.createElement("a", { onClick: ctx.toggleValue, href: "" }, ctx.value);
+      };
+      const angularReactConsumer = react2angular(ReactConsumer);
+
+      angular
+        .module("test-app", [])
+        .component("angularRoot", angularRoot)
+        .component("testComponent", testComponent)
+        .component("angularReactButton", angularReactButton)
+        .component("angularReactLocation", angularReactLocation)
+        .component("angularReactConsumer", angularReactConsumer);
+
+      const $injector = angular.bootstrap(document.documentElement, ["test-app"]);
+
+      const TestComponentReact = angular2react("testComponent", testComponent, $injector);
+
+      function ReactRoot() {
+        const [ctxValue, setCtxValue] = React.useState("context value");
+        const [baz, setBaz] = React.useState(1);
+        function onBar() {
+          setBaz(baz + 1);
+        }
+        return React.createElement(
+          context.Provider,
+          {
+            value: {
+              value: ctxValue,
+              toggleValue: () =>
+                setCtxValue(ctxValue === "context value" ? "context updated" : "context value"),
+            },
+          },
+          React.createElement(TestComponentReact, { foo: "react", onBar, baz }),
+        );
+      }
+
+      const reactContainer = document.getElementById("react-root");
+      const reactRoot = ReactDOMClient.createRoot(reactContainer);
+      reactRoot.render(
+        React.createElement(React.StrictMode, {}, React.createElement(ReactRoot, {})),
+      );
+    </script>
+  </body>
+</html>

@@ -12,6 +12,27 @@ import { angular2react, react2angular } from "./react-angularjs-adapter.js";
 
 type Global = Record<string, unknown>;
 
+function ReactRenderWatcher(props: React.PropsWithChildren<{ onRendered(): void }>) {
+  const rendersRef = React.useRef(0);
+  React.useEffect(() => {
+    // In strict mode, the effect will be called twice on mount, so ignore the first one
+    if (rendersRef.current > 0) {
+      props.onRendered();
+    }
+    rendersRef.current++;
+  });
+  return props.children;
+}
+
+/** Render a React component in strict mode, and wait for it to finish before returning */
+async function renderReact(root: ReactDOMClient.Root, children: React.ReactNode) {
+  let onRendered = () => {};
+  const renderPromise = new Promise<void>((r) => (onRendered = r));
+  const watcherElement = React.createElement(ReactRenderWatcher, { onRendered }, children);
+  root.render(React.createElement(React.StrictMode, {}, watcherElement));
+  await renderPromise;
+}
+
 describe("react-angularjs-adapter", () => {
   let angular: typeof angularType;
 
@@ -164,8 +185,8 @@ describe("react-angularjs-adapter", () => {
     it("should mount and update an AngularJS component in React", async () => {
       // Define an AngularJS component
       const TestComponent = {
-        bindings: { foo: "<", onBar: "<" },
-        template: `<div class="ng-comp">{{$ctrl.foo}}<button ng-click="$ctrl.onBar()"></button></div>`,
+        bindings: { foo: "<", onBar: "<", baz: "@" },
+        template: `<div class="ng-comp">{{$ctrl.foo}}<button ng-click="$ctrl.onBar()"> </button>{{$ctrl.baz}}</div>`,
         controller: function () {},
       };
 
@@ -173,7 +194,7 @@ describe("react-angularjs-adapter", () => {
       const [$injector] = bootstrapAngular(["testComponent", TestComponent]);
 
       // Create a React wrapper for the AngularJS component
-      const ReactTestComponent = angular2react<{ foo: string; onBar: () => void }>(
+      const ReactTestComponent = angular2react<{ foo: string; onBar: () => void; baz: string }>(
         "testComponent",
         TestComponent,
         $injector,
@@ -181,35 +202,34 @@ describe("react-angularjs-adapter", () => {
 
       // Mount the React component
       let barCalled = false;
+      const onBar = () => {
+        barCalled = true;
+      };
       const container = document.createElement("div");
       document.body.appendChild(container);
       const root = ReactDOMClient.createRoot(container);
-      root.render(
-        React.createElement(ReactTestComponent, {
-          foo: "hello!",
-          onBar: () => {
-            barCalled = true;
-          },
-        }),
+      await renderReact(
+        root,
+        React.createElement(ReactTestComponent, { foo: "hello!", onBar, baz: "world." }),
       );
 
       // Wait for AngularJS digest/render
       await new Promise((r) => setTimeout(r, 100));
       const div = container.querySelector(".ng-comp");
       assert(div, "AngularJS component should be rendered");
-      assert.equal(div.textContent, "hello!", "Component should contain the expected text");
+      assert.equal(div.textContent, "hello! world.", "Component should contain the expected text");
 
       // Update props
-      root.render(
-        React.createElement(ReactTestComponent, {
-          foo: "updated!",
-          onBar: () => {
-            barCalled = true;
-          },
-        }),
+      await renderReact(
+        root,
+        React.createElement(ReactTestComponent, { foo: "updated!", onBar, baz: "me too :)" }),
       );
       await new Promise((r) => setTimeout(r, 100));
-      assert.equal(div.textContent, "updated!", "Component should update when props change");
+      assert.equal(
+        div.textContent,
+        "updated! me too :)",
+        "Component should update when props change",
+      );
 
       // Simulate click
       const button = div.querySelector("button");
@@ -234,7 +254,8 @@ describe("react-angularjs-adapter", () => {
       const container = document.createElement("div");
       document.body.appendChild(container);
       const root = ReactDOMClient.createRoot(container);
-      root.render(
+      await renderReact(
+        root,
         React.createElement(
           React.Fragment,
           null,
@@ -269,7 +290,7 @@ describe("react-angularjs-adapter", () => {
       const container = document.createElement("div");
       document.body.appendChild(container);
       const root = ReactDOMClient.createRoot(container);
-      root.render(React.createElement(ReactTestComponent, testProps));
+      await renderReact(root, React.createElement(ReactTestComponent, testProps));
       await new Promise((r) => setTimeout(r, 100));
 
       const allText = container.textContent;
@@ -321,7 +342,8 @@ describe("react-angularjs-adapter", () => {
       const container = document.createElement("div");
       document.body.appendChild(container);
       const root = ReactDOMClient.createRoot(container);
-      root.render(
+      await renderReact(
+        root,
         React.createElement(
           MyContext.Provider,
           { value: "context works!" },
@@ -329,7 +351,7 @@ describe("react-angularjs-adapter", () => {
         ),
       );
 
-      // Wait for React and AngularJS to render
+      // Wait for AngularJS to render
       await new Promise((r) => setTimeout(r, 100));
 
       const div = container.querySelector(".context-value");

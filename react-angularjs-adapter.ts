@@ -3,23 +3,39 @@ import React from "react";
 import ReactDOM from "react-dom";
 import ReactDOMClient from "react-dom/client";
 
+const LOWERCASE_START = /^[a-z]/;
+const INVALID_CHARACTERS = /[^a-zA-Z0-9]/g;
+const CAMEL_TO_KEBAB_REGEXP = /[A-Z]/g;
+const VALID_BINDINGS = /[@<]/;
+
 let nextPortalId = 0;
 
-interface Adapter {
+interface Adapter<Props> {
   createPortalRoot(target: HTMLElement): ReactDOMClient.Root;
-}
-
-interface AugmentedHTMLElement extends HTMLElement {
-  __ReactAngularJSAdapter?: Adapter;
-}
-
-interface Scope<Props> extends angular.IScope {
-  props?: Props;
+  $scope: angular.IScope & { props?: Props };
 }
 
 type OnChanges<T> = {
   [K in keyof T]: angular.IChangesObject<T[K]>;
 };
+
+interface AugmentedHTMLElement<Props> extends HTMLElement {
+  __ReactAngularJSAdapter: Adapter<Props>;
+}
+
+function isAugmented(element: HTMLElement | null): element is AugmentedHTMLElement<unknown> {
+  return element !== null && "__ReactAngularJSAdapter" in element;
+}
+
+function logWarning(...messages: unknown[]) {
+  console.warn("react-angularjs-adapter:", ...messages);
+}
+
+class ReactAngularJSAdapterError extends Error {
+  constructor(message: string) {
+    super(`react-angularjs-adapter: ${message}`);
+  }
+}
 
 /**
  * Wraps an AngularJS component in React. Returns a new React component.
@@ -56,46 +72,49 @@ export function angular2react<Props extends Record<string, unknown>>(
   $injector: angular.auto.IInjectorService,
 ): React.FunctionComponent<Props> {
   return function Component(props: Props) {
-    const isCompiledRef = React.useRef(false);
+    const elementRef = React.useRef<AugmentedHTMLElement<Props>>(null);
     const portalsRef = React.useRef(
       new Map<number, { target: HTMLElement; content: React.ReactNode }>(),
     );
     const [, forceRerender] = React.useReducer((x) => x + 1, 0);
 
-    const scope = React.useMemo<Scope<Props>>(() => $injector.get("$rootScope").$new(true), []);
+    const bindings = React.useMemo<Record<string, string>>(() => {
+      if (!component.bindings) {
+        return {};
+      }
+
+      if (Object.values(component.bindings).some((b) => !VALID_BINDINGS.test(b))) {
+        logWarning(
+          `${componentName} has '=' or '&' bindings which will not work properly with React:`,
+          component.bindings,
+        );
+      }
+
+      return Object.fromEntries(
+        Object.entries(component.bindings).map(([property, binding]) => [
+          kebabCase(property),
+          binding.includes("@") ? `{{props.${property}}}` : `props.${property}`,
+        ]),
+      );
+    }, []);
 
     React.useEffect(() => {
-      return () => {
-        scope.$destroy();
-      };
-    }, [scope]);
-
-    function digest() {
-      scope.props = writable(props);
-      scope.$digest();
-    }
-
-    // Digest every render
-    React.useEffect(digest);
-
-    const bindings: Record<string, unknown> = {};
-    if (component.bindings) {
-      for (const binding in component.bindings) {
-        if (component.bindings[binding].includes("@")) {
-          bindings[kebabCase(binding)] = props[binding as keyof Props];
-        } else {
-          bindings[kebabCase(binding)] = `props.${binding}`;
-        }
-      }
-    }
-
-    function compile(element: HTMLElement) {
-      if (isCompiledRef.current) {
-        return;
+      // Apply bindings as attributes to the element. We do this here instead of just setting them
+      // as props so that we can ensure they are the correct values. As an example of when they
+      // could be incorrect: in React strict mode during development, this Effect is run twice, so
+      // the element may have already had AngularJS set up and destroyed on it. This would cause
+      // interpolated strings in the attributes (which we use for '@' bindings) to be updated
+      // to their resolved string values, which would cause those bindings to no longer respond to
+      // changes. So to avoid issues like that, we set the attributes immediately before compiling.
+      for (const [key, value] of Object.entries(bindings)) {
+        elementRef.current?.setAttribute(key, value);
       }
 
-      // Augment the element with the adapter
-      (element as AugmentedHTMLElement).__ReactAngularJSAdapter = {
+      // Set up new scope for the element
+      const $scope = $injector.get("$rootScope").$new(true);
+
+      // Augment the element with our adapter object
+      (elementRef.current as AugmentedHTMLElement<Props>).__ReactAngularJSAdapter = {
         createPortalRoot(target) {
           const id = nextPortalId++;
           return {
@@ -109,17 +128,29 @@ export function angular2react<Props extends Record<string, unknown>>(
             },
           };
         },
+        $scope,
       };
 
-      $injector.get("$compile")(element)(scope);
-      isCompiledRef.current = true;
-      digest();
-    }
+      // Finally, compile the element with our scope
+      $injector.get("$compile")(elementRef.current!)($scope);
+
+      // Destroy scope on unmount
+      return () => {
+        $scope.$destroy();
+      };
+    }, []);
+
+    React.useEffect(() => {
+      // Update scope and digest after every render
+      if (elementRef.current) {
+        elementRef.current.__ReactAngularJSAdapter.$scope.props = writable(props);
+        elementRef.current.__ReactAngularJSAdapter.$scope.$digest();
+      }
+    });
 
     return [
       React.createElement(kebabCase(componentName), {
-        ...bindings,
-        ref: compile,
+        ref: elementRef,
         key: componentName,
       }),
       ...Array.from(portalsRef.current.entries()).map(([key, { content, target }]) =>
@@ -156,7 +187,7 @@ export function angular2react<Props extends Record<string, unknown>>(
  */
 export function react2angular<Props extends object>(
   Component: React.ComponentType<Props>,
-  bindingNames: (keyof Props)[],
+  bindingNames: (keyof Props)[] = [],
   injectNames: (keyof Props)[] = [],
 ): angular.IComponentOptions {
   return {
@@ -182,12 +213,12 @@ export function react2angular<Props extends object>(
           });
 
           // Search through the element ancestors for am angular2react element we can portal from
-          let reactAncestor: AugmentedHTMLElement | null = this.element;
-          while (reactAncestor && !reactAncestor.__ReactAngularJSAdapter) {
+          let reactAncestor: HTMLElement | null = this.element;
+          while (reactAncestor && !isAugmented(reactAncestor)) {
             reactAncestor = reactAncestor.parentElement;
           }
 
-          if (reactAncestor?.__ReactAngularJSAdapter) {
+          if (isAugmented(reactAncestor)) {
             this.root = reactAncestor.__ReactAngularJSAdapter.createPortalRoot(this.element);
           } else {
             this.root = ReactDOMClient.createRoot(this.element);
@@ -242,8 +273,8 @@ function writable<T extends object>(object: T): T {
             object[key] = value as T[typeof key];
             return;
           } else {
-            console.warn(
-              `react-angularjs-adapter: Tried to write to non-writable property "${key}" of`,
+            logWarning(
+              `Tried to write to non-writable property "${key}" of`,
               object,
               `. Consider using a callback instead of 2-way binding.`,
             );
@@ -273,20 +304,16 @@ function writable<T extends object>(object: T): T {
  */
 function kebabCase(str: string) {
   if (!LOWERCASE_START.test(str)) {
-    throw new Error(
-      `react-angularjs-adapter: Cannot convert "${str}" to kebab-case because it does not start with a lowercase letter!`,
+    throw new ReactAngularJSAdapterError(
+      `Cannot convert "${str}" to kebab-case because it does not start with a lowercase letter!`,
     );
   }
 
   if (INVALID_CHARACTERS.test(str)) {
-    throw new Error(
-      `react-angularjs-adapter: Cannot convert "${str}" to kebab-case because it contains characters outside the range [a-zA-Z0-9]!`,
+    throw new ReactAngularJSAdapterError(
+      `Cannot convert "${str}" to kebab-case because it contains characters outside the range [a-zA-Z0-9]!`,
     );
   }
 
   return str.replace(CAMEL_TO_KEBAB_REGEXP, (letter) => "-" + letter.toLowerCase());
 }
-
-const LOWERCASE_START = /^[a-z]/;
-const INVALID_CHARACTERS = /[^a-zA-Z0-9]/g;
-const CAMEL_TO_KEBAB_REGEXP = /[A-Z]/g;

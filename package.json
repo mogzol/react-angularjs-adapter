@@ -10,6 +10,9 @@
       "require": "./dist/react-angularjs-adapter.umd.js"
     }
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "vite build",
     "test": "tsx --test",
