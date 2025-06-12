@@ -22,5 +22,14 @@ export default defineConfig({
       },
     },
   },
-  plugins: [dts({ include: "react-angularjs-adapter.ts" })],
+  plugins: [
+    dts({
+      include: "react-angularjs-adapter.ts",
+      afterDiagnostic: (diagnostics) => {
+        if (diagnostics.length) {
+          throw new Error("Type checking failed");
+        }
+      },
+    }),
+  ],
 });

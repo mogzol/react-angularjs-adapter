@@ -38,7 +38,7 @@
       };
 
       const testComponent = {
-        bindings: { foo: "<", onBar: "<", baz: "@" },
+        bindings: { foo: "<", onBar: "<", baz: "@", children: "<?" },
         template: `
           <div class="ng-comp">
             {{$ctrl.foo}}
@@ -46,6 +46,8 @@
             {{$ctrl.baz}}
             <angular-react-location label="'Location'"></angular-react-location>
             <angular-react-consumer></angular-react-consumer>
+            <br/><br/>
+            {{$ctrl.children}}
           </div>`,
         controller: function ($scope) {
           const $ctrl = this;
@@ -111,7 +113,7 @@
                 setCtxValue(ctxValue === "context value" ? "context updated" : "context value"),
             },
           },
-          React.createElement(TestComponentReact, { foo: "react", onBar, baz }),
+          React.createElement(TestComponentReact, { foo: "react", onBar, baz }, "beep boop"),
         );
       }
 

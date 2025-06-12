@@ -15,10 +15,6 @@ interface Adapter<Props> {
   $scope: angular.IScope & { props?: Props };
 }
 
-type OnChanges<T> = {
-  [K in keyof T]: angular.IChangesObject<T[K]>;
-};
-
 interface AugmentedHTMLElement<Props> extends HTMLElement {
   __ReactAngularJSAdapter: Adapter<Props>;
 }
@@ -36,6 +32,10 @@ class ReactAngularJSAdapterError extends Error {
     super(`react-angularjs-adapter: ${message}`);
   }
 }
+
+type OnChanges<T> = {
+  [K in keyof T]: angular.IChangesObject<T[K]>;
+};
 
 /**
  * Wraps an AngularJS component in React. Returns a new React component.
@@ -212,7 +212,7 @@ export function react2angular<Props extends object>(
             this.injectedProps[name] = services[i] as Props[keyof Props];
           });
 
-          // Search through the element ancestors for am angular2react element we can portal from
+          // Search through the element ancestors for an angular2react element we can portal from
           let reactAncestor: HTMLElement | null = this.element;
           while (reactAncestor && !isAugmented(reactAncestor)) {
             reactAncestor = reactAncestor.parentElement;
