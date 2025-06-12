@@ -6,8 +6,8 @@
   "exports": {
     ".": {
       "types": "./dist/react-angularjs-adapter.d.ts",
-      "import": "./dist/react-angularjs-adapter.es.js",
-      "require": "./dist/react-angularjs-adapter.umd.js"
+      "import": "./dist/react-angularjs-adapter.js",
+      "require": "./dist/react-angularjs-adapter.umd.cjs"
     }
   },
   "files": [

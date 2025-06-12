@@ -8,7 +8,7 @@ export default defineConfig({
     lib: {
       entry: path.resolve(__dirname, "react-angularjs-adapter.ts"),
       name: "ReactAngularJSAdapter",
-      fileName: (format) => `react-angularjs-adapter.${format}.js`,
+      fileName: "react-angularjs-adapter",
     },
     rollupOptions: {
       external: ["react", "react-dom", "react-dom/client", "angular"],
