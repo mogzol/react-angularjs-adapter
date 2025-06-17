@@ -217,7 +217,7 @@ const angularComponent: angular.IComponentOptions = {
 };
 
 // Convert angularComponent to React so it can be rendered as a child of the provider
-const ReactAngularComponent = angular2react("angularComponent", angularComponent, $injector);
+const ReactAngularComponent = angular2react("angularComponent", angularComponent);
 
 // Set up and bootstrap angular, and make injector available to angular2react
 angular
