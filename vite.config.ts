@@ -5,6 +5,7 @@ import path from "path";
 export default defineConfig({
   build: {
     minify: false,
+    sourcemap: true,
     lib: {
       entry: path.resolve(__dirname, "react-angularjs-adapter.ts"),
       name: "ReactAngularJSAdapter",

@@ -9,6 +9,14 @@ const CAMEL_TO_KEBAB_REGEXP = /[A-Z]/g;
 const VALID_BINDINGS = /[@<]/;
 
 let nextPortalId = 0;
+let $defaultInjector: angular.auto.IInjectorService | undefined;
+
+/**
+ * Set an $injector to use by default for the `angular2react` function
+ */
+export function setDefaultInjector($injector: angular.auto.IInjectorService | undefined) {
+  $defaultInjector = $injector;
+}
 
 interface Adapter<Props> {
   createPortalRoot(target: HTMLElement): ReactDOMClient.Root;
@@ -27,7 +35,7 @@ function logWarning(...messages: unknown[]) {
   console.warn("react-angularjs-adapter:", ...messages);
 }
 
-class ReactAngularJSAdapterError extends Error {
+export class ReactAngularJSAdapterError extends Error {
   constructor(message: string) {
     super(`react-angularjs-adapter: ${message}`);
   }
@@ -42,35 +50,56 @@ type OnChanges<T> = {
  *
  * @param componentName The name of the AngularJS component
  * @param component The AngularJS component definition
- * @param $injector The AngularJS `$injector` for the module the component is registered in
+ * @param $injector The AngularJS `$injector` for the application the component is registered in.
+ *                  You can omit this if you have used the `setDefaultInjector` function to set a
+ *                  default injector.
  *
  * @example
- * ```jsx
- * const Bar = { bindings: {...}, template: '...', ... };
+ * ```tsx
+ * import { angular2react, setDefaultInjector } from "react-angularjs-adapter"
  *
- * let $injector;
- * angular
- *   .module("foo")
- *   .run(["$injector", (_$injector) => ($injector = _$injector)]);
- *
- * angular
- *   .module('foo', [])
- *   .component('bar', Bar);
- *
- * type Props = {
- *   onChange(value: number): void;
+ * const angularComponent = {
+ *   bindings: { fooBar: '<', baz: '<' },
+ *   template: "<p>FooBar: {this.$ctrl.fooBar}</p><p>Baz: {this.$ctrl.baz}</p>"
  * }
  *
- * const Bar = angular2react<Props>('bar', Bar, $injector);
+ * angular
+ *   .module("myModule", [])
+ *   .component("angularComponent", angularComponent)
  *
- * <Bar onChange={...} />
+ * // Set the default injector for angular2react. This only needs to be done once.
+ * angular.module("myModule").run(["$injector", setDefaultInjector]);
+ *
+ * // Define the Prop types based on the component's bindings
+ * interface Props {
+ *   fooBar: number;
+ *   baz: string;
+ * }
+ *
+ * // Create the React component
+ * const ReactComponent = angular2react<Props>('angularComponent', angularComponent, $injector);
+ *
+ * // Then in your JSX:
+ * <ReactComponent fooBar={42} baz='lorem ipsum' />
  * ```
  */
 export function angular2react<Props extends object = Record<string, unknown>>(
   componentName: string,
   component: angular.IComponentOptions,
-  $injector: angular.auto.IInjectorService,
+  $injector?: angular.auto.IInjectorService,
 ): React.FunctionComponent<Props> {
+  function getInjector() {
+    if (typeof $injector !== "undefined") {
+      return $injector;
+    }
+    if (typeof $defaultInjector === "undefined") {
+      throw new ReactAngularJSAdapterError(
+        "$injector is unset. Please pass an $injector to the angular2react function, or use the setDefaultInjector function to set a default one.",
+      );
+    }
+    return $defaultInjector;
+  }
+
   return function Component(props: Props) {
     const elementRef = React.useRef<AugmentedHTMLElement<Props>>(null);
     const portalsRef = React.useRef(
@@ -107,8 +136,10 @@ export function angular2react<Props extends object = Record<string, unknown>>(
       // to their resolved string values, which would cause those bindings to no longer respond to
       // changes. So to avoid issues like that, we set the attributes immediately before compiling.
       for (const [key, value] of Object.entries(bindings)) {
-        elementRef.current?.setAttribute(key, value);
+        elementRef.current!.setAttribute(key, value);
       }
+
+      const $injector = getInjector();
 
       // Set up new scope for the element
       const $scope = $injector.get("$rootScope").$new(true);
@@ -169,6 +200,7 @@ export function angular2react<Props extends object = Record<string, unknown>>(
  *
  * @example
  * ```tsx
+ * // Define a React component
  * interface Props {
  *   foo: number;
  *   $location: angular.ILocationService;
@@ -182,7 +214,12 @@ export function angular2react<Props extends object = Record<string, unknown>>(
  *   );
  * }
  *
+ * // Convert it to an AngularJS component
  * const angularComponent = react2angular(ReactComponent, ['foo'], ["$location"]);
+ * angular.module("myModule", []).component("angularComponent", angularComponent);
+ *
+ * // Then in your HTML
+ * <angular-component foo-bar="42" baz="'lorem ipsum'"></angular-component>
  * ```
  */
 export function react2angular<Props extends object>(
@@ -276,7 +313,7 @@ function writable<T extends object>(object: T): T {
             logWarning(
               `Tried to write to non-writable property "${key}" of`,
               object,
-              `. Consider using a callback instead of 2-way binding.`,
+              `. Consider using a callback instead of a 2-way binding.`,
             );
           }
         },
@@ -305,13 +342,13 @@ function writable<T extends object>(object: T): T {
 function kebabCase(str: string) {
   if (!LOWERCASE_START.test(str)) {
     throw new ReactAngularJSAdapterError(
-      `Cannot convert "${str}" to kebab-case because it does not start with a lowercase letter!`,
+      `Cannot convert "${str}" to kebab-case because it does not start with a lowercase letter`,
     );
   }
 
   if (INVALID_CHARACTERS.test(str)) {
     throw new ReactAngularJSAdapterError(
-      `Cannot convert "${str}" to kebab-case because it contains characters outside the range [a-zA-Z0-9]!`,
+      `Cannot convert "${str}" to kebab-case because it contains characters outside the range [a-zA-Z0-9]`,
     );
   }
 

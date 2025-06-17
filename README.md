@@ -21,31 +21,24 @@ Then use one of the two exported functions:
 
 ## angular2react
 
+This function converts a component from AngularJS to React.
+
 ### Function signature
 
 ```ts
 function angular2react<Props extends Record<string, unknown>>(
   componentName: string,
   component: angular.IComponentOptions,
-  $injector: angular.auto.IInjectorService,
+  $injector?: angular.auto.IInjectorService,
 ): React.FunctionComponent<Props>;
 ```
 
 ### Usage
 
-To convert a component from AngularJS to React, you first need to get a reference to the `$injector` for the module the component you want to convert is registered in. This is necessary so that `angular2react` can compile the component. You can get the `$injector` for your module like this:
+Start with the AngularJS component definition you want to convert. For example:
 
 ```ts
-let $injector: angular.auto.IInjectorService;
-angular
-  .module("myModule")
-  .run(["$injector", (i: angular.auto.IInjectorService) => ($injector = i)]);
-```
-
-Now take your AngularJS component definition, for example:
-
-```ts
-const myComponent: angular.IComponentOptions = {
+const angularComponent: angular.IComponentOptions = {
   bindings: {
     fooBar: "<",
     baz: "<",
@@ -56,26 +49,33 @@ const myComponent: angular.IComponentOptions = {
   `,
 };
 
-angular.module("myModule", []).component("myComponent", myComponent);
+angular.module("myModule", []).component("angularComponent", angularComponent);
 ```
 
-And run it through the `angular2react` function to convert it to a React component:
+You will also need to call the `setDefaultInjector` function with a reference to the `$injector` for the AngularJS application your component is registered in. This is necessary so that `angular2react` can compile your component. This only needs to be done once:
 
 ```ts
+import { setDefaultInjector } from "react-angularjs-adapter";
+
+angular.module("myModule").run(["$injector", setDefaultInjector]);
+```
+
+Then, use `angular2react` to convert your component to React:
+
+```tsx
 import { angular2react } from "react-angularjs-adapter";
 
-interface MyComponentProps {
+// Define the Prop types based on the component's bindings
+interface Props {
   fooBar: number;
   baz: string;
 }
 
-const MyComponent = angular2react<MyComponentProps>("myComponent", myComponent, $injector);
-```
+// Create the React component
+const ReactComponent = angular2react<Props>("angularComponent", angularComponent);
 
-This will return a component that can be used just like any other React component:
-
-```tsx
-<MyComponent fooBar={42} baz="lorem ipsum" />
+// Then in your JSX:
+<ReactComponent fooBar={42} baz="lorem ipsum" />;
 ```
 
 [![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/edit/vitejs-vite-5zgnyra9?file=src%2Fmain.tsx)
@@ -83,6 +83,7 @@ This will return a component that can be used just like any other React componen
 ### Caveats
 
 - The Angular app must be bootstrapped before attempting to render any converted components in React.
+- If your page contains multiple bootstrapped AngularJS applications, you should pass the correct `$injector` as the third parameter to `angular2react`, instead of setting a default one with the `setDefaultInjector` function.
 - Only one-way bindings (`<` and `@`) are supported, because React props only allow passing data from parent to child. Instead of two-way bindings, consider using callback functions bound with `<`. Note that such callbacks will be run from outside the context of AngularJS, so you may need to use `$scope.$apply` to see the changes.
 - While you can use `children` as a binding, you cannot pass elements as children, only primitive data. For example, you couldn't do something like:
   ```tsx
@@ -98,6 +99,8 @@ This will return a component that can be used just like any other React componen
 
 ## react2angular
 
+This function converts a component from React to AngularJS.
+
 ### Function signature
 
 ```ts
@@ -110,16 +113,16 @@ function react2angular<Props extends object>(
 
 ### Usage
 
-To convert a component from React to AngularJS, first take your React component, for example:
+Start with the React component you want to convert, for example:
 
 ```tsx
-interface MyComponentProps {
+interface Props {
   fooBar: number;
   baz: string;
   $location: angular.ILocationService;
 }
 
-function MyComponent(props: MyComponentProps) {
+function ReactComponent(props: Props) {
   return (
     <div>
       <p>FooBar: {props.fooBar}</p>
@@ -135,9 +138,9 @@ And expose it to AngularJS using `react2angular`:
 ```ts
 import { react2angular } from "react-angularjs-adapter";
 
-angular
-  .module("myModule", [])
-  .component("myComponent", react2angular(MyComponent, ["fooBar", "baz"], ["$location"]));
+const angularComponent = react2angular(ReactComponent, ["fooBar", "baz"], ["$location"]);
+
+angular.module("myModule", []).component("angularComponent", angularComponent);
 ```
 
 The second argument of the `react2angular` function is a string array of all the binding names for the component, which will be passed to the React component as props. The third (optional) argument is a string array of any AngularJS dependencies you want injected, which will also be passed to the React component as props.
@@ -145,10 +148,10 @@ The second argument of the `react2angular` function is a string array of all the
 Now, you can use the component just like any other AngularJS component:
 
 ```html
-<my-component foo-bar="42" baz="'lorem ipsum'"></my-component>
+<angular-component foo-bar="42" baz="'lorem ipsum'"></angular-component>
 ```
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/edit/vitejs-vite-f9ryc9zi?file=src%2Fmain.tsx,index.html)
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/edit/vitejs-vite-f9ryc9zi?file=src%2Fmain.tsx)
 
 ### Caveats
 
@@ -170,7 +173,7 @@ Whenever you use a `react2angular` component, it will search up the DOM tree for
 import React from "react";
 import { createRoot } from "react-dom/client";
 import angular from "angular";
-import { react2angular, angular2react } from "react-angularjs-adapter";
+import { react2angular, angular2react, setDefaultInjector } from "react-angularjs-adapter";
 
 // Define a React context, a provider component, and a consumer component
 const context = React.createContext({ value: NaN, increment: () => {} });
@@ -213,16 +216,17 @@ const angularComponent: angular.IComponentOptions = {
     </div>`,
 };
 
-// Set up and bootstrap angular
+// Convert angularComponent to React so it can be rendered as a child of the provider
+const ReactAngularComponent = angular2react("angularComponent", angularComponent, $injector);
+
+// Set up and bootstrap angular, and make injector available to angular2react
 angular
   .module("example-app", [])
   .component("angularComponent", angularComponent)
   .component("angularReactConsumer", angularReactConsumer);
 
 const $injector = angular.bootstrap(document.documentElement, ["example-app"]);
-
-// Convert angularComponent to React so it can be rendered as a child of the provider
-const ReactAngularComponent = angular2react("angularComponent", angularComponent, $injector);
+setDefaultInjector($injector);
 
 // Render everything
 createRoot(document.getElementById("root")!).render(

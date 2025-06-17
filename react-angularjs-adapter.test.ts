@@ -2,13 +2,13 @@
 import assert from "node:assert";
 import fs from "node:fs";
 import path from "node:path";
-import { describe, it, beforeEach, afterEach } from "node:test";
+import { describe, it, beforeEach, afterEach, after } from "node:test";
 import jsdom from "jsdom";
 import type angularType from "angular";
 import React, { createContext, useContext } from "react";
 import ReactDOMClient from "react-dom/client";
 
-import { angular2react, react2angular } from "./react-angularjs-adapter.js";
+import { angular2react, react2angular, setDefaultInjector } from "./react-angularjs-adapter.js";
 
 type Global = Record<string, unknown>;
 
@@ -306,6 +306,58 @@ describe("react-angularjs-adapter", () => {
         resultProps,
         testProps,
         `Rendered component did not correctly pass all props as attributes.\n\nRendered element:\n\n${container.innerHTML}\n\n`,
+      );
+    });
+
+    it("should allow setting a default injector with setDefaultInjector", async () => {
+      const TestComponent = {
+        bindings: { label: "<" },
+        template: `<div class="ng-label">{{$ctrl.label}}</div>`,
+        controller: function () {},
+      };
+
+      // When not passing $injector, this can be called before bootstrapping angular
+      const ReactTestComponent = angular2react<{ label: string }>("testComponent", TestComponent);
+
+      const [$injector] = bootstrapAngular(["testComponent", TestComponent]);
+      setDefaultInjector($injector);
+      after(() => setDefaultInjector(undefined));
+
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      const root = ReactDOMClient.createRoot(container);
+      await renderReact(root, React.createElement(ReactTestComponent, { label: "X" }));
+      await new Promise((r) => setTimeout(r, 100));
+
+      const labels = container.querySelectorAll(".ng-label");
+      assert.equal(labels.length, 1, "Should render components with the default injector");
+      assert.equal(labels[0].textContent, "X");
+    });
+
+    it("should throw if the default injector is unset and none is passed", async () => {
+      const TestComponent = {
+        bindings: { label: "<" },
+        template: `<div class="ng-label">{{$ctrl.label}}</div>`,
+        controller: function () {},
+      };
+      bootstrapAngular(["testComponent", TestComponent]);
+
+      const ReactTestComponent = angular2react<{ label: string }>("testComponent", TestComponent);
+
+      let renderError: unknown;
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      const root = ReactDOMClient.createRoot(container, {
+        onUncaughtError: (e) => (renderError = e),
+      });
+
+      await renderReact(root, React.createElement(ReactTestComponent, { label: "X" }));
+      await new Promise((r) => setTimeout(r, 100));
+
+      assert.match(
+        String(renderError),
+        /\$injector is unset/,
+        "should throw if no $injector is provided",
       );
     });
   });
