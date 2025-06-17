@@ -1,6 +1,6 @@
 <img alt="react-angularjs-adapter logo" src="https://raw.githubusercontent.com/mogzol/react-angularjs-adapter/main/logo.png" width="400px" />
 
-# react-angularjs-adapter
+# react-angularjs-adapter [![npm version](https://badge.fury.io/js/react-angularjs-adapter.svg)](https://badge.fury.io/js/react-angularjs-adapter)
 
 Mount AngularJS (AngularJS 1 only) components in React, and React components in AngularJS. Supports React 19 [and React contexts](#react-context-example).
 
@@ -33,7 +33,7 @@ function angular2react<Props extends Record<string, unknown>>(
 
 ### Usage
 
-To use the `angular2react` function to convert a component from AngularJS to React, you first need to get a reference to the `$injector` for the module that the component you want to convert is registered in. This is necessary so that angular2react can compile the component. You can get the `$injector` like this:
+To convert a component from AngularJS to React, you first need to get a reference to the `$injector` for the module the component you want to convert is registered in. This is necessary so that `angular2react` can compile the component. You can get the `$injector` for your module like this:
 
 ```ts
 let $injector: angular.auto.IInjectorService;
@@ -42,7 +42,7 @@ angular
   .run(["$injector", (i: angular.auto.IInjectorService) => ($injector = i)]);
 ```
 
-Now take your component definition, for example:
+Now take your AngularJS component definition, for example:
 
 ```ts
 const myComponent: angular.IComponentOptions = {
@@ -51,8 +51,8 @@ const myComponent: angular.IComponentOptions = {
     baz: "<",
   },
   template: `
-    <p>FooBar: {this.$ctrl.fooBar}</p>
-    <p>Baz: {this.$ctrl.baz}</p>
+    <p>FooBar: {{$ctrl.fooBar}}</p>
+    <p>Baz: {{$ctrl.baz}}</p>
   `,
 };
 
@@ -72,16 +72,18 @@ interface MyComponentProps {
 const MyComponent = angular2react<MyComponentProps>("myComponent", myComponent, $injector);
 ```
 
-This will return a component that can be used like any other React component:
+This will return a component that can be used just like any other React component:
 
 ```tsx
 <MyComponent fooBar={42} baz="lorem ipsum" />
 ```
 
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/edit/vitejs-vite-5zgnyra9?file=src%2Fmain.tsx)
+
 ### Caveats
 
 - The Angular app must be bootstrapped before attempting to render any converted components in React.
-- Only one-way bindings (`<` and `@`) are supported, because React props only allow passing data from parent to child. Instead of two-way bindings, consider using callback functions bound with `<`. Note that such callbacks will be run from outside the context of AngularJS, so you may need to use `$scope.$apply` for AngularJS to see the changes.
+- Only one-way bindings (`<` and `@`) are supported, because React props only allow passing data from parent to child. Instead of two-way bindings, consider using callback functions bound with `<`. Note that such callbacks will be run from outside the context of AngularJS, so you may need to use `$scope.$apply` to see the changes.
 - While you can use `children` as a binding, you cannot pass elements as children, only primitive data. For example, you couldn't do something like:
   ```tsx
   <MyAngularButton>
@@ -92,7 +94,7 @@ This will return a component that can be used like any other React component:
   ```tsx
   <MyAngularButton>Button Text</MyAngularButton>
   ```
-  And `"Button Text"` will be passed to the AngularJS component via the `children` binding. In the first example, `children` would be a React element which you can't do anything with in AngularJS.
+  And `"Button Text"` will be passed to the AngularJS component via the `children` binding.
 
 ## react2angular
 
@@ -122,7 +124,7 @@ function MyComponent(props: MyComponentProps) {
     <div>
       <p>FooBar: {props.fooBar}</p>
       <p>Baz: {props.baz}</p>
-      <p>Location: {props.$location.absUrl()}
+      <p>Location: {props.$location.absUrl()}</p>
     </div>
   );
 }
@@ -146,6 +148,8 @@ Now, you can use the component just like any other AngularJS component:
 <my-component foo-bar="42" baz="'lorem ipsum'"></my-component>
 ```
 
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/edit/vitejs-vite-f9ryc9zi?file=src%2Fmain.tsx,index.html)
+
 ### Caveats
 
 - All bindings on the component will be one-way '`<`' bindings, so if you want to pass a raw string, make sure to wrap it in quotes, like `baz="'lorem ipsum'"` above. To achieve two-way data transfer, use callback functions.
@@ -160,13 +164,13 @@ Now, you can use the component just like any other AngularJS component:
 
 # React Context Example
 
-When you use a `react2angular` component inside an AngularJS component tree which itself is mounted as a React component using `angular2react`, the library will create a React portal connecting the React components, allowing you to use the context from React ancestors even when there are AngularJS components in-between. Here is an example to illustrate this:
+Whenever you use a `react2angular` component, it will search up the DOM tree for an ancestor `angular2react` component. If one is found, the library will create a React portal connecting the React components, allowing you to use the context from React ancestors even when there are AngularJS components in-between. Here is an example to illustrate this:
 
 ```tsx
 import React from "react";
 import { createRoot } from "react-dom/client";
 import angular from "angular";
-import { react2angular, angular2react } from "./react-angularjs-adapter.ts";
+import { react2angular, angular2react } from "react-angularjs-adapter";
 
 // Define a React context, a provider component, and a consumer component
 const context = React.createContext({ value: NaN, increment: () => {} });
@@ -232,7 +236,7 @@ When you run this app, you can see that the context is passed from the the provi
 
 <img alt="context example demo" src="https://raw.githubusercontent.com/mogzol/react-angularjs-adapter/main/demo.gif" />
 
-[See this example on StackBlitz](https://stackblitz.com/edit/vitejs-vite-w5zljhwj?file=src%2Fmain.tsx)
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/edit/vitejs-vite-w5zljhwj?file=src%2Fmain.tsx)
 
 # Credits
 

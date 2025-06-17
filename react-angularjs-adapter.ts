@@ -66,7 +66,7 @@ type OnChanges<T> = {
  * <Bar onChange={...} />
  * ```
  */
-export function angular2react<Props extends Record<string, unknown>>(
+export function angular2react<Props extends object = Record<string, unknown>>(
   componentName: string,
   component: angular.IComponentOptions,
   $injector: angular.auto.IInjectorService,
